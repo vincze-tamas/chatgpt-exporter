@@ -58,7 +58,7 @@ function resetToIdle() {
   progressBar.classList.remove('is-done');
   statusBox.className = '';
   etaDisplay.textContent = '';
-  exportBtn.textContent = '📥 Export to ZIP';
+  exportBtn.textContent = '📥 Export to JSON';
 }
 
 // ── On popup open: sync with content script state ──────────
