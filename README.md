@@ -1,8 +1,8 @@
 # ChatGPT Conversation Exporter
 
-> A Chrome extension that exports **all your ChatGPT conversations** to Markdown files inside a ZIP archive — preserving your project folder structure, with no Python or external tools required.
+> A Chrome extension that exports **all your ChatGPT conversations** to a single flat JSON file — preserving project metadata, with no Python or external tools required.
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-orange.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 
@@ -13,7 +13,7 @@
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Output Structure](#output-structure)
+- [Output Format](#output-format)
 - [How It Works](#how-it-works)
 - [Privacy](#privacy)
 - [Troubleshooting](#troubleshooting)
@@ -25,12 +25,12 @@
 ## Features
 
 - **Exports all projects** — automatically discovers every project in your sidebar
-- **Preserves folder structure** — each project becomes its own folder in the ZIP
-- **Exports regular conversations too** — non-project chats go into a `Conversations/` folder
-- **Pure Markdown output** — clean `.md` files ready to open in any editor or Obsidian vault
+- **Flat JSON output** — one file, all conversations, ready for analysis or further processing
+- **Project metadata preserved** — each conversation includes its project name (`null` for non-project chats)
+- **Exports regular conversations too** — non-project chats are included with `"project": null`
 - **Runs in the background** — close the popup while exporting; the tab keeps working
 - **Live progress + ETA** — real-time progress bar with time-remaining estimate
-- **No Python, no scripts, no dependencies** — one ZIP download, just unzip and read
+- **No Python, no scripts, no dependencies** — pure JavaScript, one JSON file download
 - **Zero external requests** — uses your existing browser session; nothing leaves your machine
 
 ---
@@ -62,61 +62,48 @@ In the left sidebar, hover over the **"More"** button under *Projects*. This mak
 
 ### Step 3 — Export
 
-Click the **ChatGPT Exporter** icon in your toolbar, then click **📥 Export to ZIP**.
+Click the **ChatGPT Exporter** icon in your toolbar, then click **📥 Export to JSON**.
 
 The extension will:
 1. Detect all your projects
 2. Download the conversation list for each project
-3. Download full conversation details and convert them to Markdown
-4. Package everything and download `chatgpt_export_YYYY-MM-DD.zip` automatically
+3. Download full conversation details and flatten them to JSON
+4. Download `chatgpt_export_YYYY-MM-DD.json` automatically
 
 > **You can close the popup** while the export runs — it continues in the background as long as the `chatgpt.com` tab stays open. Reopen the popup anytime to check progress.
 
-### Step 4 — Unzip
-
-Done. Just unzip the file — no further steps needed.
-
 ---
 
-## Output Structure
+## Output Format
 
+The exported file is a JSON array where each element represents one conversation:
+
+```json
+[
+  {
+    "project": "My Coding Project",
+    "conversation_id": "a1b2c3d4-...",
+    "title": "Refactor authentication module",
+    "created_at": "2025-06-01T10:15:00.000Z",
+    "messages": [
+      { "role": "user", "content": "Can you help me refactor this JWT middleware?" },
+      { "role": "assistant", "content": "Sure! Here's a cleaner version..." }
+    ]
+  },
+  {
+    "project": null,
+    "conversation_id": "e5f6g7h8-...",
+    "title": "Recipe ideas",
+    "created_at": "2025-07-10T08:00:00.000Z",
+    "messages": [
+      { "role": "user", "content": "What can I make with zucchini?" },
+      { "role": "assistant", "content": "Here are a few ideas..." }
+    ]
+  }
+]
 ```
-chatgpt_export_2025-07-14.zip
-└── chatgpt_export/
-    ├── Projects/
-    │   ├── My Coding Project/
-    │   │   ├── 2025-06-01_Refactor authentication module.md
-    │   │   └── 2025-06-15_Add unit tests for parser.md
-    │   └── Research Notes/
-    │       └── 2025-07-02_Literature review on transformers.md
-    └── Conversations/
-        ├── 2025-05-20_Random question about Python.md
-        └── 2025-07-10_Recipe ideas.md
-```
 
-Each Markdown file looks like this:
-
-```markdown
-# Refactor authentication module
-
-**Created:** 6/1/2025, 10:15:00 AM
-**Updated:** 6/1/2025, 11:42:00 AM
-**ID:** `a1b2c3d4...`
-
----
-
-### You
-
-Can you help me refactor this JWT middleware?
-
----
-
-### ChatGPT
-
-Sure! Here's a cleaner version using a dedicated `AuthGuard` class...
-
----
-```
+Conversations not belonging to any project have `"project": null`.
 
 ---
 
@@ -130,8 +117,8 @@ ChatGPT projects are stored internally as **gizmos** with the URL pattern `/g/g-
 4. Retrieves conversation lists via `/backend-api/gizmos/{gizmo_id}/conversations?cursor=0`
 5. Uses cursor-based pagination to collect every conversation across all pages
 6. Fetches full conversation trees via `/backend-api/conversation/{id}`
-7. Converts the internal message tree to Markdown in pure JavaScript
-8. Builds a standard ZIP archive in memory and triggers a browser download
+7. Flattens each conversation tree to a `messages` array (`role` + `content` only)
+8. Serialises everything to a single JSON file and triggers a browser download
 
 All API calls are made **from within the `chatgpt.com` page context** using your existing browser session — identical to what the ChatGPT web app does itself.
 
@@ -143,8 +130,8 @@ This extension:
 
 - **Only runs on `chatgpt.com`** — it cannot access any other website
 - **Makes no external network requests** — all requests go to `chatgpt.com` only
-- **Sends no data anywhere** — the ZIP is built in memory and saved directly to your computer
-- **Uses no third-party libraries** — the full codebase is ~500 lines of vanilla JavaScript
+- **Sends no data anywhere** — the JSON is built in memory and saved directly to your computer
+- **Uses no third-party libraries** — the full codebase is ~300 lines of vanilla JavaScript
 - **Stores nothing persistently** — no `localStorage`, no `IndexedDB`, no cookies written
 
 The full source code is auditable in this repository.
@@ -165,8 +152,8 @@ The full source code is auditable in this repository.
 | "Reload the chatgpt.com tab and try again" | The content script didn't load. Reload the `chatgpt.com` tab, then open the popup again. |
 | 0 projects detected | Hover over "More" in the sidebar first, wait 1–2 seconds, then click Export. |
 | Export stops mid-way | Keep the `chatgpt.com` tab open and visible. The extension keeps running in the background. |
-| ZIP is empty or very small | A temporary API error occurred — try again. |
-| Conversations appear in the wrong project | Make sure you're on the latest version; reload the extension if needed. |
+| JSON file is empty or very small | A temporary API error occurred — try again. |
+| Conversations appear under the wrong project | Make sure you're on the latest version; reload the extension if needed. |
 
 **Still stuck?** [Open an issue](https://github.com/vincze-tamas/chatgpt-exporter/issues) and include:
 - Your Chrome version (`chrome://version`)
